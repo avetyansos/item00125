@@ -2,11 +2,15 @@ import MoodForm from "@/components/mood-form"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import MoodTimeline from "@/components/mood-timeline"
 import MoodGraph from "@/components/mood-graph"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export default function Home() {
   return (
     <main className="container max-w-md mx-auto p-4 pb-20">
-      <h1 className="text-2xl font-bold text-center mb-6">Mood Tracker</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Mood Tracker</h1>
+        <ThemeToggle />
+      </div>
 
       <Tabs defaultValue="entry" className="w-full">
         <TabsList className="grid grid-cols-3 mb-6">
