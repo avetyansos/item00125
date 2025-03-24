@@ -17,10 +17,21 @@ export default function MoodTimeline() {
   const [entries, setEntries] = useState<MoodEntry[]>([])
 
   useEffect(() => {
-    const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
-    setEntries(
-      storedEntries.sort((a: MoodEntry, b: MoodEntry) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    )
+    const loadEntries = () => {
+      const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
+      setEntries(
+        storedEntries.sort((a: MoodEntry, b: MoodEntry) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      )
+    }
+
+    loadEntries()
+
+    // Listen for storage changes
+    window.addEventListener("storage", loadEntries)
+
+    return () => {
+      window.removeEventListener("storage", loadEntries)
+    }
   }, [])
 
   if (entries.length === 0) {

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer } from "@/components/ui/chart"
 import { Line, LineChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
-import { format, startOfDay } from "date-fns"
+import { format, startOfDay, subDays } from "date-fns"
 
 type MoodEntry = {
   id: number
@@ -13,7 +13,6 @@ type MoodEntry = {
   description: string
 }
 
-type TimeRange = "7days" | "30days" | "90days" | "all"
 type AggregationType = "day" | "week" | "month"
 
 export default function MoodGraph() {
@@ -21,21 +20,36 @@ export default function MoodGraph() {
   const [allEntries, setAllEntries] = useState<MoodEntry[]>([])
 
   useEffect(() => {
-    const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
+    const loadEntries = () => {
+      const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
 
-    // Sort by date ascending
-    const sortedEntries = storedEntries.sort(
-      (a: MoodEntry, b: MoodEntry) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    )
+      // Sort by date ascending
+      const sortedEntries = storedEntries.sort(
+        (a: MoodEntry, b: MoodEntry) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )
 
-    setAllEntries(sortedEntries)
+      setAllEntries(sortedEntries)
+    }
+
+    loadEntries()
+
+    // Listen for storage changes
+    window.addEventListener("storage", loadEntries)
+
+    return () => {
+      window.removeEventListener("storage", loadEntries)
+    }
   }, [])
 
   useEffect(() => {
     if (allEntries.length === 0) return
 
+    // Filter entries to only include the last 15 days
+    const cutoffDate = subDays(new Date(), 15)
+    const filteredEntries = allEntries.filter((entry) => new Date(entry.date) >= cutoffDate)
+
     // Aggregate data by day to keep chart readable
-    const aggregatedData = aggregateData(allEntries, "day")
+    const aggregatedData = aggregateData(filteredEntries, "day")
 
     setChartData(aggregatedData)
   }, [allEntries])
@@ -77,12 +91,6 @@ export default function MoodGraph() {
       }
     })
 
-    // Limit to max 20 data points to keep chart readable
-    if (result.length > 20) {
-      const step = Math.ceil(result.length / 20)
-      return result.filter((_, index) => index % step === 0)
-    }
-
     return result
   }
 
@@ -104,7 +112,7 @@ export default function MoodGraph() {
         <CardTitle>Mood Trends</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-sm text-muted-foreground mb-4">Showing daily mood averages</div>
+        <div className="text-sm text-muted-foreground mb-4">Showing daily mood averages for the last 15 days</div>
 
         <ChartContainer
           config={{

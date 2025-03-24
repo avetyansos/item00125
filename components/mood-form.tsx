@@ -6,7 +6,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { toast } from "@/components/ui/use-toast"
+import { useCustomToast } from "@/components/ui/toast-provider"
 import { useRouter } from "next/navigation"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -25,6 +25,7 @@ export default function MoodForm() {
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
   const router = useRouter()
+  const { showToast } = useCustomToast()
 
   // Validate form when mood selection changes
   useEffect(() => {
@@ -38,6 +39,7 @@ export default function MoodForm() {
       setError("Please select a mood")
       return false
     }
+
     setError(null)
     return true
   }
@@ -55,7 +57,7 @@ export default function MoodForm() {
       return
     }
 
-    // Get existing entries or initialize empty array
+    // Get existing entries
     const existingEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
 
     // Add new entry
@@ -67,17 +69,22 @@ export default function MoodForm() {
     }
 
     // Save to localStorage
-    localStorage.setItem("moodEntries", JSON.stringify([...existingEntries, newEntry]))
+    const updatedEntries = [...existingEntries, newEntry]
+    localStorage.setItem("moodEntries", JSON.stringify(updatedEntries))
 
     // Reset form
     setSelectedMood(null)
     setDescription("")
     setTouched(false)
 
-    toast({
+    // Show success toast using our custom toast provider
+    showToast({
       title: "Mood added",
       description: "Your mood was added successfully.",
     })
+
+    // Trigger a storage event for other components to update
+    window.dispatchEvent(new Event("storage"))
 
     // Refresh to show updated data
     router.refresh()
