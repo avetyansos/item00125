@@ -325,7 +325,7 @@ import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { Toaster } from "@/components/ui/toaster"
+import { ToastProvider } from "@/components/ui/toast-provider"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -350,8 +350,7 @@ export default function RootLayout({
           disableTransitionOnChange
           suppressHydrationWarning
         >
-          {children}
-          <Toaster />
+          <ToastProvider>{children}</ToastProvider>
         </ThemeProvider>
       </body>
     </html>
@@ -413,7 +412,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
-import { toast } from "@/components/ui/use-toast"
+import { useCustomToast } from "@/components/ui/toast-provider"
 import { useRouter } from "next/navigation"
 import { AlertCircle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -432,6 +431,7 @@ export default function MoodForm() {
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
   const router = useRouter()
+  const { showToast } = useCustomToast()
 
   // Validate form when mood selection changes
   useEffect(() => {
@@ -445,6 +445,7 @@ export default function MoodForm() {
       setError("Please select a mood")
       return false
     }
+
     setError(null)
     return true
   }
@@ -462,7 +463,7 @@ export default function MoodForm() {
       return
     }
 
-    // Get existing entries or initialize empty array
+    // Get existing entries
     const existingEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
 
     // Add new entry
@@ -474,17 +475,22 @@ export default function MoodForm() {
     }
 
     // Save to localStorage
-    localStorage.setItem("moodEntries", JSON.stringify([...existingEntries, newEntry]))
+    const updatedEntries = [...existingEntries, newEntry]
+    localStorage.setItem("moodEntries", JSON.stringify(updatedEntries))
 
     // Reset form
     setSelectedMood(null)
     setDescription("")
     setTouched(false)
 
-    toast({
+    // Show success toast using our custom toast provider
+    showToast({
       title: "Mood added",
       description: "Your mood was added successfully.",
     })
+
+    // Trigger a storage event for other components to update
+    window.dispatchEvent(new Event("storage"))
 
     // Refresh to show updated data
     router.refresh()
@@ -553,7 +559,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer } from "@/components/ui/chart"
 import { Line, LineChart, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts"
-import { format, startOfDay } from "date-fns"
+import { format, startOfDay, subDays } from "date-fns"
 
 type MoodEntry = {
   id: number
@@ -562,7 +568,6 @@ type MoodEntry = {
   description: string
 }
 
-type TimeRange = "7days" | "30days" | "90days" | "all"
 type AggregationType = "day" | "week" | "month"
 
 export default function MoodGraph() {
@@ -570,21 +575,36 @@ export default function MoodGraph() {
   const [allEntries, setAllEntries] = useState<MoodEntry[]>([])
 
   useEffect(() => {
-    const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
+    const loadEntries = () => {
+      const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
 
-    // Sort by date ascending
-    const sortedEntries = storedEntries.sort(
-      (a: MoodEntry, b: MoodEntry) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-    )
+      // Sort by date ascending
+      const sortedEntries = storedEntries.sort(
+        (a: MoodEntry, b: MoodEntry) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )
 
-    setAllEntries(sortedEntries)
+      setAllEntries(sortedEntries)
+    }
+
+    loadEntries()
+
+    // Listen for storage changes
+    window.addEventListener("storage", loadEntries)
+
+    return () => {
+      window.removeEventListener("storage", loadEntries)
+    }
   }, [])
 
   useEffect(() => {
     if (allEntries.length === 0) return
 
+    // Filter entries to only include the last 15 days
+    const cutoffDate = subDays(new Date(), 15)
+    const filteredEntries = allEntries.filter((entry) => new Date(entry.date) >= cutoffDate)
+
     // Aggregate data by day to keep chart readable
-    const aggregatedData = aggregateData(allEntries, "day")
+    const aggregatedData = aggregateData(filteredEntries, "day")
 
     setChartData(aggregatedData)
   }, [allEntries])
@@ -626,12 +646,6 @@ export default function MoodGraph() {
       }
     })
 
-    // Limit to max 20 data points to keep chart readable
-    if (result.length > 20) {
-      const step = Math.ceil(result.length / 20)
-      return result.filter((_, index) => index % step === 0)
-    }
-
     return result
   }
 
@@ -653,7 +667,7 @@ export default function MoodGraph() {
         <CardTitle>Mood Trends</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="text-sm text-muted-foreground mb-4">Showing daily mood averages</div>
+        <div className="text-sm text-muted-foreground mb-4">Showing daily mood averages for the last 15 days</div>
 
         <ChartContainer
           config={{
@@ -724,10 +738,21 @@ export default function MoodTimeline() {
   const [entries, setEntries] = useState<MoodEntry[]>([])
 
   useEffect(() => {
-    const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
-    setEntries(
-      storedEntries.sort((a: MoodEntry, b: MoodEntry) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-    )
+    const loadEntries = () => {
+      const storedEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
+      setEntries(
+        storedEntries.sort((a: MoodEntry, b: MoodEntry) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+      )
+    }
+
+    loadEntries()
+
+    // Listen for storage changes
+    window.addEventListener("storage", loadEntries)
+
+    return () => {
+      window.removeEventListener("storage", loadEntries)
+    }
   }, [])
 
   if (entries.length === 0) {
