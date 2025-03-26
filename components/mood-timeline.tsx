@@ -41,7 +41,7 @@ export default function MoodTimeline() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [entryToDelete, setEntryToDelete] = useState<number | null>(null)
   const [lastDeletedEntry, setLastDeletedEntry] = useState<MoodEntry | null>(null)
-  const { showToast } = useCustomToast()
+  const { showToast, clearToasts } = useCustomToast()
 
   useEffect(() => {
     const loadEntries = () => {
@@ -124,6 +124,7 @@ export default function MoodTimeline() {
         </div>
       ),
       duration: 8000, // Longer duration to give time to click undo
+      id: "delete-toast", // Add an ID to identify this toast
     })
 
     // Trigger a storage event for other components to update
@@ -135,6 +136,9 @@ export default function MoodTimeline() {
   }
 
   const undoDelete = () => {
+    // Clear the delete toast immediately
+    clearToasts("delete-toast")
+
     // Try to get the deleted entry from state first, then from localStorage as fallback
     let deletedEntry = lastDeletedEntry
 
@@ -293,7 +297,7 @@ export default function MoodTimeline() {
 
       {/* Edit Dialog */}
       <Dialog open={editingEntry !== null} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px] max-w-[95vw] p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Edit Mood Entry</DialogTitle>
           </DialogHeader>
@@ -366,29 +370,33 @@ export default function MoodTimeline() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
             <DialogClose asChild>
-              <Button variant="outline">Cancel</Button>
+              <Button variant="outline" className="w-full sm:w-auto">
+                Cancel
+              </Button>
             </DialogClose>
-            <Button onClick={saveEditedEntry}>Save Changes</Button>
+            <Button onClick={saveEditedEntry} className="w-full sm:w-auto">
+              Save Changes
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will delete this mood entry. You can undo this action if needed.
-            </AlertDialogDescription>
+        <AlertDialogContent className="max-w-[95vw] sm:max-w-[320px] p-4 sm:p-5">
+          <AlertDialogHeader className="space-y-2">
+            <AlertDialogTitle className="text-base">Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm">This will delete this mood entry.</AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setEntryToDelete(null)}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-2">
+            <AlertDialogCancel onClick={() => setEntryToDelete(null)} className="w-full sm:w-auto">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
