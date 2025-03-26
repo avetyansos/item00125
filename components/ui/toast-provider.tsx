@@ -2,13 +2,14 @@
 
 import type React from "react"
 
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, type ReactNode } from "react"
 import { Toaster } from "@/components/ui/toaster"
 
 type ToastType = {
   title: string
-  description?: string
+  description?: string | ReactNode
   variant?: "default" | "destructive"
+  duration?: number
 }
 
 type ToastContextType = {
@@ -24,10 +25,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     // Add toast to the queue
     setToasts((prev) => [...prev, toast])
 
-    // Remove toast after 3 seconds
+    // Remove toast after specified duration or default to 5 seconds
+    const duration = toast.duration || 5000
     setTimeout(() => {
       setToasts((prev) => prev.slice(1))
-    }, 3000)
+    }, duration)
   }
 
   return (
@@ -41,10 +43,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={index}
             className={`rounded-md p-4 shadow-md transition-all duration-300 transform translate-y-0 
-              ${toast.variant === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-primary text-primary-foreground"}`}
+              ${toast.variant === "destructive" ? "bg-destructive text-destructive-foreground" : "bg-background border text-foreground"}`}
           >
             <div className="font-medium">{toast.title}</div>
-            {toast.description && <div className="text-sm mt-1">{toast.description}</div>}
+            <div className="text-sm mt-1">{toast.description}</div>
           </div>
         ))}
       </div>

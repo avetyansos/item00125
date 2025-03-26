@@ -8,8 +8,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent } from "@/components/ui/card"
 import { useCustomToast } from "@/components/ui/toast-provider"
 import { useRouter } from "next/navigation"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Calendar } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar as CalendarComponent } from "@/components/ui/calendar"
+import { format, isFuture, isBefore, subDays } from "date-fns"
+import { cn } from "@/lib/utils"
 
 const MOOD_EMOJIS = [
   { emoji: "😢", value: 1, label: "Sad" },
@@ -24,6 +28,8 @@ export default function MoodForm() {
   const [description, setDescription] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [touched, setTouched] = useState(false)
+  const [date, setDate] = useState<Date>(new Date())
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const router = useRouter()
   const { showToast } = useCustomToast()
 
@@ -49,6 +55,20 @@ export default function MoodForm() {
     setTouched(true)
   }
 
+  // Function to disable dates outside the allowed range (last 15 days to today)
+  const isDateDisabled = (date: Date) => {
+    const today = new Date()
+    const fifteenDaysAgo = subDays(today, 15)
+
+    // Disable future dates
+    if (isFuture(date)) return true
+
+    // Disable dates more than 15 days in the past
+    if (isBefore(date, fifteenDaysAgo)) return true
+
+    return false
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(true)
@@ -60,10 +80,10 @@ export default function MoodForm() {
     // Get existing entries
     const existingEntries = JSON.parse(localStorage.getItem("moodEntries") || "[]")
 
-    // Add new entry
+    // Add new entry with selected date
     const newEntry = {
       id: Date.now(),
-      date: new Date().toISOString(),
+      date: date.toISOString(),
       mood: selectedMood,
       description: description.trim(),
     }
@@ -75,6 +95,7 @@ export default function MoodForm() {
     // Reset form
     setSelectedMood(null)
     setDescription("")
+    setDate(new Date())
     setTouched(false)
 
     // Show success toast using our custom toast provider
@@ -118,6 +139,36 @@ export default function MoodForm() {
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">Date (last 15 days)</label>
+            <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <CalendarComponent
+                  mode="single"
+                  selected={date}
+                  onSelect={(newDate) => {
+                    if (newDate) {
+                      setDate(newDate)
+                      setIsCalendarOpen(false)
+                    }
+                  }}
+                  disabled={isDateDisabled}
+                  initialFocus
+                  className="rounded-md border"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>
